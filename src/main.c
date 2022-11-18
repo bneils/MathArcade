@@ -3,15 +3,15 @@
 #include <keypadc.h>
 #include <ti/getcsc.h>
 
-#include "gfx.h"
+#include "common.h"
 #include "sudoku_app.h"
 #include "snake_app.h"
 #include "game2048_app.h"
 #include "sokoban_app.h"
 
-#define LEFT_PADDING 20
-#define TOP_PADDING 20
-#define CURSOR_WIDTH 16
+#define MENU_LEFT_PADDING 20
+#define MENU_TOP_PADDING 20
+#define MENU_CURSOR_WIDTH 16
 
 static inline void palette_init(void);
 static void selection_screen(void);
@@ -82,11 +82,15 @@ static void selection_screen(void) {
 
 	for (;;) {
 		gfx_FillScreen(WHITE);
-		g_list(list_items, LEFT_PADDING, TOP_PADDING);
-		g_sel(LEFT_PADDING - CURSOR_WIDTH, TOP_PADDING);
+		g_list(list_items, MENU_LEFT_PADDING, MENU_TOP_PADDING);
+		g_sel(MENU_LEFT_PADDING - MENU_CURSOR_WIDTH, MENU_TOP_PADDING);
 		gfx_SetTextFGColor(BLUE);
-		g_list(msgs, LCD_WIDTH - gfx_GetStringWidth(msgs[4]) - LEFT_PADDING, TOP_PADDING);
-		g_blit_sprite4x(sprites[listcur], (LCD_WIDTH - sprites[listcur]->width * 4) / 2, LCD_HEIGHT - sprites[listcur]->height*4);
+		g_list(msgs, LCD_WIDTH - gfx_GetStringWidth(msgs[4]) - MENU_LEFT_PADDING, MENU_TOP_PADDING);
+		gfx_ScaledSprite_NoClip(
+			sprites[listcur],
+			LCD_WIDTH / 2 - sprites[listcur]->width * 2, LCD_HEIGHT - sprites[listcur]->height*4, 
+			4, 4
+		);
 		gfx_SwapDraw();
 
 		int key;
@@ -107,9 +111,7 @@ static void selection_screen(void) {
 
 		if (listcur < 0) {
 			listcur = N_GAMES - 1;
-		}
-
-		else if (listcur >= (int) N_GAMES) {
+		} else if (listcur >= (int) N_GAMES) {
 			listcur = 0;
 		}
 	}

@@ -2,11 +2,11 @@
 #define SOKOBAN_APP_H
 
 enum SBTile {
-    S_FLOOR = 0,
-    S_BOX,
-    S_WALL,
-    S_PLAYER,
-    S_DEST,
+	S_FLOOR = 0,
+	S_BOX,
+	S_WALL,
+	S_PLAYER,
+	S_DEST,
 };
 
 void sokoban_mainloop(void);

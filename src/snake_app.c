@@ -5,22 +5,9 @@
 #include <stdio.h>
 
 #include "snake_app.h"
-#include "gfx.h"
+#include "common.h"
 
-// holds the vertex data of the snake as it moves around
-struct Vertex {
-    uint8_t x, y;
-};
-
-// in px
-#define STRIDE 5
-// in game state cells
-#define AREA_WIDTH (GFX_LCD_WIDTH / STRIDE)
-#define AREA_HEIGHT (GFX_LCD_HEIGHT / STRIDE)
-
-// the screen is 320x240
-// it's reasonable to make the snake 5px big
-// therefore, the game area would be 64x48 (320/5,240/5)
+#define vertdata share.snake_bss.vertdata
 
 static void draw_snake(struct Vertex *tail, struct Vertex *head, const struct Vertex *l, const struct Vertex *r, struct Vertex *foodloc);
 static bool check_point_on_edge(struct Vertex *tail, struct Vertex *head, const struct Vertex *l, const struct Vertex *r, struct Vertex *pt);
@@ -29,11 +16,9 @@ static bool isbetween(int pt1, int n, int pt2);
 static void random_food(struct Vertex *loc);
 void snake_mainloop(void);
 
+extern union Shared share;
+
 void snake_mainloop(void) {
-    // IT'S REALLY IMPORTANT THAT THIS FIELD IS STATIC.
-    //https://ce-programming.github.io/toolchain/static/faq.html#what-is-the-c-c-runtime-memory-layout
-    // IE: the stack is 4kb, and i'm trying to allocate way too much.
-    static struct Vertex vertdata[AREA_HEIGHT * AREA_HEIGHT];
     struct Vertex *tailptr, *followptr, *headptr;
     // the *tailptr increments in the direction of the *followptr.
     // if tailptr==followptr or *tailptr==*followptr, nothing happens.
@@ -59,7 +44,7 @@ void snake_mainloop(void) {
         int num_tail_moves = 1;
         if (headptr->x == foodloc.x && headptr->y == foodloc.y) {
             do {
-                random_food(&foodloc); // TODO: MIGHT INTERSECT WITH SNAKE
+                random_food(&foodloc);
             } while (check_point_on_edge(tailptr, headptr, vertdata, vertlast, &foodloc));
             
             num_tail_moves = 0;
@@ -112,7 +97,7 @@ skip_dir_change: // for trying to go in opp directions
         }
         *headptr = next_loc;
         
-        if (headptr->x < 0 || headptr->x >= AREA_WIDTH || headptr->y < 0 || headptr->y >= AREA_HEIGHT)
+        if (headptr->x < 0 || headptr->x >= SNAKE_GRID_WIDTH || headptr->y < 0 || headptr->y >= SNAKE_GRID_HEIGHT)
             break; // they ded
 
         // dont know why the fix is to make the tail move more depending on whether or not the snake grew,
@@ -182,25 +167,25 @@ static void draw_snake(struct Vertex *tail, struct Vertex *head, const struct Ve
         int dx = sign(next->x - node->x);
         int dy = sign(next->y - node->y);
         while (px.x != next->x || px.y != next->y) {
-            gfx_FillRectangle(px.x*STRIDE, px.y*STRIDE, STRIDE, STRIDE);
+            gfx_FillRectangle(px.x*SNAKE_PX_STRIDE, px.y*SNAKE_PX_STRIDE, SNAKE_PX_STRIDE, SNAKE_PX_STRIDE);
             px.x += dx;
             px.y += dy;
         }
-        gfx_FillRectangle(px.x*STRIDE, px.y*STRIDE, STRIDE, STRIDE); // the head does not get since it stops immediately once it reaches it
+        gfx_FillRectangle(px.x*SNAKE_PX_STRIDE, px.y*SNAKE_PX_STRIDE, SNAKE_PX_STRIDE, SNAKE_PX_STRIDE); // the head does not get since it stops immediately once it reaches it
 
         if (next == head) break;    // last edge to be checked
         node = next; // done instead of increment node, because of check done to next previously
     }
 
     gfx_SetColor(GREEN);
-    gfx_FillRectangle(foodloc->x*STRIDE, foodloc->y*STRIDE, STRIDE, STRIDE);
+    gfx_FillRectangle(foodloc->x*SNAKE_PX_STRIDE, foodloc->y*SNAKE_PX_STRIDE, SNAKE_PX_STRIDE, SNAKE_PX_STRIDE);
 
     gfx_SwapDraw();
 }
 
 static void random_food(struct Vertex *loc) {
-    loc->x = random() % AREA_WIDTH;
-    loc->y = random() % AREA_HEIGHT;
+    loc->x = random() % SNAKE_GRID_WIDTH;
+    loc->y = random() % SNAKE_GRID_HEIGHT;
 }
 
 static bool check_point_on_edge(struct Vertex *tail, struct Vertex *head, const struct Vertex *l, const struct Vertex *r, struct Vertex *pt) {
