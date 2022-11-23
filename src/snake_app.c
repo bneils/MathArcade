@@ -9,205 +9,242 @@
 
 #define vertdata share.snake_bss.vertdata
 
-static void draw_snake(struct Vertex *tail, struct Vertex *head, const struct Vertex *l, const struct Vertex *r, struct Vertex *foodloc);
-static bool check_point_on_edge(struct Vertex *tail, struct Vertex *head, const struct Vertex *l, const struct Vertex *r, struct Vertex *pt);
-static int sign(int a);
-static bool isbetween(int pt1, int n, int pt2);
-static void random_food(struct Vertex *loc);
+/* How many nodes does food add to the snake*/
+#define FOOD_GROWTH 1
+#define SNAKE_COLOR BLACK
+#define FOOD_COLOR GREEN
+#define SNAKE_UWAIT 100000
+
+static char direction_table[][2] = {
+	{-1,  0 },
+	{ 1,  0 },
+	{ 0, -1 },
+	{ 0,  1 },
+};
+
+enum LookDir {
+	D_LEFT = 0,
+	D_RIGHT,
+	D_UP,
+	D_DOWN,
+};
+
+static struct Vertex *vert_tail_shift(struct Vertex *tail);
+static struct Vertex *vert_wrap_next(struct Vertex *vert);
+static bool vert_snake_collcheck(struct Vertex *tail, struct Vertex *head, struct Vertex vert);
+
+static struct Vertex random_vert(void);
+
+static void draw_snake(struct Vertex *tail, struct Vertex *head);
+static void draw_food(struct Vertex food);
+
 void snake_mainloop(void);
 
 extern union Shared share;
 
 void snake_mainloop(void) {
-    struct Vertex *tailptr, *followptr, *headptr;
-    // the *tailptr increments in the direction of the *followptr.
-    // if tailptr==followptr or *tailptr==*followptr, nothing happens.
-    // *headptr increments in the snake's direction.
-    // when the snake changes direction, headptr shifts in the array by 1 and copies itself to the new location.
-    tailptr = vertdata+0;
-    headptr = followptr = vertdata+1;
+	struct Vertex *tail, *head, food;
+	uint24_t score, tail_growth;
+	enum LookDir head_dir;
 
-    // represents the last element of the vertex data
-    const struct Vertex *vertlast = vertdata + sizeof(vertdata) - 1;
+	tail = &vertdata[0];
+	head = &vertdata[1];
+	score = 0;
+	tail_growth = 0;
 
-    tailptr->x = 5;
-    tailptr->y = 5;
-    headptr->x = 6;
-    headptr->y = 5;
+	tail->x = 5;
+	tail->y = 5;
+	*head = *tail;
+	head_dir = D_RIGHT;
 
-    struct Vertex foodloc;
+	// Give the snake some food to make it look like an actual
+	// snake
+	food = *head;
+	
+	for (;;) {
+		if (head->x == food.x && head->y == food.y) {
+			do {
+				food = random_vert();
+			} while (vert_snake_collcheck(tail, head, food));
+			tail_growth += FOOD_GROWTH;
+			score += FOOD_GROWTH;
+		}
 
-    random_food(&foodloc);
-    uint24_t score=0;
-    int dirx = 1, diry = 0;
-    for (;;) {
-        int num_tail_moves = 1;
-        if (headptr->x == foodloc.x && headptr->y == foodloc.y) {
-            do {
-                random_food(&foodloc);
-            } while (check_point_on_edge(tailptr, headptr, vertdata, vertlast, &foodloc));
-            
-            num_tail_moves = 0;
-            ++score;
-        }
+		gfx_FillScreen(WHITE);
+		draw_snake(tail, head);
+		draw_food(food);
+		gfx_SwapDraw();
 
-        draw_snake(tailptr, headptr, vertdata, vertlast, &foodloc);
-        bool dir_changed = false;
-        
-        kb_Scan();
-        if (kb_Data[7] & kb_Left) {
-            if (dirx == 1) goto skip_dir_change;
-            if (dirx != -1) dir_changed = true;
-            dirx = -1;
-            diry = 0;
-        } else if (kb_Data[7] & kb_Right) {
-            if (dirx == -1) goto skip_dir_change;
-            if (dirx != 1) dir_changed = true;
-            dirx = 1;
-            diry = 0;
-        } else if (kb_Data[7] & kb_Up) {
-            if (diry == 1) goto skip_dir_change;
-            if (diry != -1) dir_changed = true;
-            dirx = 0;
-            diry = -1;
-        } else if (kb_Data[7] & kb_Down) {
-            if (diry == -1) goto skip_dir_change;
-            if (diry != 1) dir_changed = true;
-            dirx = 0;
-            diry = 1;
-        } else if (kb_Data[6] & kb_Clear) { // quit the game
-            return;
-        }
-skip_dir_change: // for trying to go in opp directions
+		uint8_t key = get_single_key_pressed();
+		enum LookDir prev_dir = head_dir;
 
-        if (dir_changed) {
-            struct Vertex *old = headptr;
-            headptr++;
-            if (headptr > vertlast) headptr = vertdata; // another wrap around
-            *headptr = *old;
-            num_tail_moves++;
-        }
+		switch (key) {
+			case sk_Left:
+				if (head_dir != D_RIGHT)
+					head_dir = D_LEFT;
+				break;
+			case sk_Right:
+				if (head_dir != D_LEFT)
+					head_dir = D_RIGHT;
+				break;
+			case sk_Up:
+				if (head_dir != D_DOWN)
+					head_dir = D_UP;
+				break;
+			case sk_Down:
+				if (head_dir != D_UP)
+					head_dir = D_DOWN;
+				break;
+			case sk_Clear:
+				return;
+		}
 
-        // predictive check for head pointer.
-        struct Vertex next_loc = *headptr;
-        next_loc.x += dirx;
-        next_loc.y += diry;
-        if (check_point_on_edge(tailptr, headptr, vertdata, vertlast, &next_loc)) {
-            break;
-        }
-        *headptr = next_loc;
-        
-        if (headptr->x < 0 || headptr->x >= SNAKE_GRID_WIDTH || headptr->y < 0 || headptr->y >= SNAKE_GRID_HEIGHT)
-            break; // they ded
+		// This is done because if we check if the head intersects with any part of the snake,
+		// it will always return true because the head is apart of the snake.
+		struct Vertex future_head = *head;
+		future_head.x += direction_table[head_dir][0];
+		future_head.y += direction_table[head_dir][1];
 
-        // dont know why the fix is to make the tail move more depending on whether or not the snake grew,
-        // or if the snake change dirs. It's obvious to make the snake stop if 
-        for (int i = 0; i < num_tail_moves; ++i) {
-            int dx, dy;
-            dx = sign(followptr->x - tailptr->x);
-            dy = sign(followptr->y - tailptr->y);
-            
-            // if the tailptr VERTEX meets the next vertex, you need to merge the two vertices
-            // by setting tailptr=followptr and moving followptr to the next vertex in the line.
-            if (dx == 0 && dy == 0) {
-                tailptr = followptr; // this is done to avoid a wrapping check, even if it's just +1
-                followptr++;
+		if (future_head.x < 0 || future_head.x >= SNAKE_GRID_WIDTH ||
+				future_head.y < 0 || future_head.y >= SNAKE_GRID_HEIGHT) {
+			break;
+		}
 
-                if (followptr > vertlast)
-                    followptr = vertdata;
-                continue;
-            }
+		if (vert_snake_collcheck(tail, head, future_head)) {
+			break;
+		}
 
-            // this follows the assumption that ((dx!=0) AND (dy!=0)) is a contradiction.
-            tailptr->x += dx;
-            tailptr->y += dy;
-        }
+		// Let the tail catch up before you (possibly) create a
+		// new vertex. Bad behavior *might* occur otherwise, but are
+		// only an unlikely contingency.
+		if (tail_growth > 0) {
+			--tail_growth;
+		} else {
+			tail = vert_tail_shift(tail);
+		}
 
-        usleep(100000); // 0.1s
-    }
-    //ok so, there's 3072 cells = 64*48, so it makes sense there couldn't really be more food than that
-    //that's just a weird math upper bound/intuition thing tho.
-    //anyways,that woul take 5 bytes(including \0),plus 4 for "HS: "
-    //that's 9 bytes. I'm reserving 10 here, so that's by reasoning for why this is ok.. maybe not the safest.
-    //but it shouldn't buffer overflow.
-    char str_score[10];
-    snprintf(str_score, sizeof(str_score), "HS: %d", score);
-    gfx_SetTextFGColor(GREEN);
-    gfx_FillScreen(WHITE);
-    gfx_PrintStringXY(str_score, GFX_LCD_WIDTH / 2, GFX_LCD_HEIGHT / 2);
-    gfx_SwapDraw();
+		// Changing the direction of the snake creates a new vertex
+		if (prev_dir != head_dir) {
+			head = vert_wrap_next(head);
+		}
+		*head = future_head;
+		usleep(SNAKE_UWAIT);
+	}
 
-    //exhaust this shit
-    while (os_GetCSC())
-        ;
-    usleep(500000);//yk what? I'm gonna wait .5 sec. It shouldn't even matter if they press a key.
+	// 2^24 - 1 = 16,777,215 (8 chars)
+	// "HS: " (4 chars) + score (8 chars) + '\0' (1 char) = 13
+	// Round up to 16
+	char str_score_msg[16];
+	snprintf(str_score_msg, sizeof(str_score_msg), "HS: %d", score);
+	gfx_SetTextFGColor(BLACK);
+	gfx_PrintStringXY(str_score_msg, GFX_LCD_WIDTH / 2, GFX_LCD_HEIGHT / 2);
+	gfx_SwapDraw();
 
-    while (!os_GetCSC())
-        ;
+	usleep(500000);
+
+	while (!os_GetCSC())
+		;
 }
 
-/* gives the sign of an integer. */
-static int sign(int a) {
-    if (a > 0) return 1;
-    if (a < 0) return -1;
-    return 0;
+/* Draw the snake's vertices by connecting them */
+static void draw_snake(struct Vertex *tail, struct Vertex *head) {
+	gfx_SetColor(SNAKE_COLOR);
+
+	struct Vertex *node = tail;
+	int x1, x2, y1, y2;
+
+	while (node != head) {
+		struct Vertex *next = vert_wrap_next(node);
+		x1 = node->x;
+		x2 = next->x;
+		enforce_lt(&x1, &x2);
+
+		y1 = node->y;
+		y2 = next->y;
+		enforce_lt(&y1, &y2);
+
+		gfx_FillRectangle(
+			x1 * SNAKE_PX_STRIDE, y1 * SNAKE_PX_STRIDE,
+			(x2 - x1 + 1) * SNAKE_PX_STRIDE, (y2 - y1 + 1) * SNAKE_PX_STRIDE
+		);
+		node = next;
+	}
 }
 
-static void draw_snake(struct Vertex *tail, struct Vertex *head, const struct Vertex *l, const struct Vertex *r, struct Vertex *foodloc) {
-    gfx_FillScreen(WHITE);
-    gfx_SetColor(BLACK);
-
-    const struct Vertex *node = tail;
-    for (;;) {
-        const struct Vertex *next = node + 1;
-        if (next > r) next = l;
-
-        // now, increment between the verts (you need to create a copy to not affect tail shit)
-        struct Vertex px = *node;
-        int dx = sign(next->x - node->x);
-        int dy = sign(next->y - node->y);
-        while (px.x != next->x || px.y != next->y) {
-            gfx_FillRectangle(px.x*SNAKE_PX_STRIDE, px.y*SNAKE_PX_STRIDE, SNAKE_PX_STRIDE, SNAKE_PX_STRIDE);
-            px.x += dx;
-            px.y += dy;
-        }
-        gfx_FillRectangle(px.x*SNAKE_PX_STRIDE, px.y*SNAKE_PX_STRIDE, SNAKE_PX_STRIDE, SNAKE_PX_STRIDE); // the head does not get since it stops immediately once it reaches it
-
-        if (next == head) break;    // last edge to be checked
-        node = next; // done instead of increment node, because of check done to next previously
-    }
-
-    gfx_SetColor(GREEN);
-    gfx_FillRectangle(foodloc->x*SNAKE_PX_STRIDE, foodloc->y*SNAKE_PX_STRIDE, SNAKE_PX_STRIDE, SNAKE_PX_STRIDE);
-
-    gfx_SwapDraw();
+static void draw_food(struct Vertex food) {
+	gfx_SetColor(FOOD_COLOR);
+	gfx_FillRectangle(
+		food.x * SNAKE_PX_STRIDE, food.y * SNAKE_PX_STRIDE,
+		SNAKE_PX_STRIDE, SNAKE_PX_STRIDE
+	);
 }
 
-static void random_food(struct Vertex *loc) {
-    loc->x = random() % SNAKE_GRID_WIDTH;
-    loc->y = random() % SNAKE_GRID_HEIGHT;
+/* Returns a random vertex in the snake grid. */
+static struct Vertex random_vert(void) {
+	struct Vertex vert = {
+		.x = randInt(0, SNAKE_GRID_WIDTH - 1),
+		.y = randInt(0, SNAKE_GRID_HEIGHT - 1),
+	};
+	return vert;
 }
 
-static bool check_point_on_edge(struct Vertex *tail, struct Vertex *head, const struct Vertex *l, const struct Vertex *r, struct Vertex *pt) {
-    const struct Vertex *node = tail;
-    for (;;) {
-        const struct Vertex *next = node + 1;
-        if (next > r) next = l;
-        // found an edge that has pt on it
-        if (isbetween(node->x, pt->x, next->x) && isbetween(node->y, pt->y, next->y)) return true;
+/* Iterates the snake and checks if a vert intersects with any segment of it.
+ * Returns true if any overlapping was found, and false otherwise.
+ */
+static bool vert_snake_collcheck(struct Vertex *tail, struct Vertex *head, struct Vertex vert) {
+	struct Vertex *node = tail;
 
-        if (next == head) break;    // last edge to be checked
-        node = next; // done instead of increment node, because of check done to next previously
-    }
-    return false;
+	while (node != head) {
+		struct Vertex *next = vert_wrap_next(node);
+		int x1, x2, y1, y2;
+		x1 = node->x;
+		x2 = next->x;
+		enforce_lt(&x1, &x2);
+
+		y1 = node->y;
+		y2 = next->y;
+		enforce_lt(&y1, &y2);
+
+		if (x1 <= vert.x && vert.x <= x2 && y1 <= vert.y && vert.y <= y2) {
+			return true;
+		}
+		node = next;
+	}
+	return false;
 }
 
-static bool isbetween(int a, int n, int b) {
-    //enforce a<=b
-    if (a > b) { // swap
-        int t = a;
-        a = b;
-        b = t;
-    }
-    return (a <= n && n <= b);
+/* Shift the tail vertex in the direction of the next
+ * vertex in the snake vertex chain.
+ * Returns the new tail vertex pointer.
+ */
+static struct Vertex *vert_tail_shift(struct Vertex *tail) {
+	struct Vertex *next;
+	int dx, dy;
+
+	next = vert_wrap_next(tail);
+
+	dx = sign(next->x - tail->x);
+	dy = sign(next->y - tail->y);
+	tail->x += dx;
+	tail->y += dy;
+	// If what tail and next point to are the same,
+	// then tail should be "disposed of" by returning a
+	// different pointer
+	if (tail->x == next->x && tail->y == next->y) {
+		return next;
+	} else {
+		return tail;
+	}
+}
+
+/* Since vertdata is a circular array, this function simply returns
+ * the next element after n.
+ */
+static struct Vertex *vert_wrap_next(struct Vertex *n) {
+	++n;
+	if (n > &vertdata[SNAKE_VERTDATA_LEN - 1]) {
+		return vertdata;
+	} else {
+		return n;
+	}
 }

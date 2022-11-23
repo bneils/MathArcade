@@ -10,6 +10,7 @@
 #define SNAKE_PX_STRIDE 10
 #define SNAKE_GRID_WIDTH (GFX_LCD_WIDTH / SNAKE_PX_STRIDE)
 #define SNAKE_GRID_HEIGHT (GFX_LCD_HEIGHT / SNAKE_PX_STRIDE)
+#define SNAKE_VERTDATA_LEN (SNAKE_GRID_WIDTH * SNAKE_GRID_HEIGHT)
 #define _2048_GRID_WH 4
 #define SUDOKU_GRID_WH 9
 
@@ -18,6 +19,9 @@
 
 bool any(const void *, size_t nmemb, size_t size);
 bool all(const void *, size_t nmemb, size_t size);
+int sign(int a);
+void enforce_lt(int *a, int *b);
+uint8_t get_single_key_pressed(void);
 void g_list(const char *s[], int x, int y);
 void g_sel(int x, int y);
 
@@ -59,9 +63,9 @@ enum Colors {
  */
 union Shared {
 	struct {
-		struct Vertex vertdata[SNAKE_GRID_WIDTH * SNAKE_GRID_HEIGHT];
+		struct Vertex vertdata[SNAKE_VERTDATA_LEN];
 	} snake_bss;
-	
+
 	struct {
 		uint24_t tiles[_2048_GRID_WH][_2048_GRID_WH];
 	} _2048_bss;

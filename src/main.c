@@ -88,7 +88,7 @@ static void selection_screen(void) {
 		g_list(msgs, LCD_WIDTH - gfx_GetStringWidth(msgs[4]) - MENU_LEFT_PADDING, MENU_TOP_PADDING);
 		gfx_ScaledSprite_NoClip(
 			sprites[listcur],
-			LCD_WIDTH / 2 - sprites[listcur]->width * 2, LCD_HEIGHT - sprites[listcur]->height*4, 
+			LCD_WIDTH / 2 - sprites[listcur]->width * 2, LCD_HEIGHT - sprites[listcur]->height*4,
 			4, 4
 		);
 		gfx_SwapDraw();

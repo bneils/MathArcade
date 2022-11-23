@@ -1,4 +1,5 @@
 #include "common.h"
+#include <keypadc.h>
 
 union Shared share;
 
@@ -25,4 +26,43 @@ bool all(const void *p, size_t nmemb, size_t size) {
 		}
 	}
 	return true;
+}
+
+// code by jacobly
+uint8_t get_single_key_pressed(void) {
+	static uint8_t last_key;
+	uint8_t only_key = 0;
+	kb_Scan();
+	for (uint8_t key = 1, group = 7; group; --group) {
+		for (uint8_t mask = 1; mask; mask <<= 1, ++key) {
+			if (kb_Data[group] & mask) {
+				if (only_key) {
+					last_key = 0;
+					return 0;
+				} else {
+					only_key = key;
+				}
+			}
+		}
+	}
+	if (only_key == last_key) {
+		return 0;
+	}
+	last_key = only_key;
+	return only_key;
+}
+
+/* Returns the sign of an integer. */
+int sign(int a) {
+	if (a > 0) return 1;
+	if (a < 0) return -1;
+	return 0;
+}
+
+void enforce_lt(int *a, int *b) {
+	if (*a > *b) {
+		int t = *a;
+		*a = *b;
+		*b = t;
+	}
 }
