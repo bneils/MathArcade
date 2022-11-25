@@ -25,7 +25,7 @@ uint8_t get_single_key_pressed(void);
 void g_list(const char *s[], int x, int y);
 void g_sel(int x, int y);
 
-struct Vertex {
+struct Pos {
 	uint8_t x, y;
 };
 
@@ -63,7 +63,7 @@ enum Colors {
  */
 union Shared {
 	struct {
-		struct Vertex vertdata[SNAKE_VERTDATA_LEN];
+		struct Pos vertdata[SNAKE_VERTDATA_LEN];
 	} snake_bss;
 
 	struct {
@@ -77,5 +77,7 @@ union Shared {
 		bool candidate_set[SUDOKU_GRID_WH][SUDOKU_GRID_WH][10];
 	} sudoku_bss;
 };
+
+extern union Shared share;
 
 #endif // COMMON_H

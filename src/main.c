@@ -67,10 +67,10 @@ static void selection_screen(void) {
 
 	// The image to be displayed by when a user hovers over the icon.
 	const gfx_sprite_t *sprites[N_GAMES] = {
-		sudoku,
-		sokoban,
-		game2048,
-		snake,
+		sprite_sudoku,
+		sprite_sokoban,
+		sprite_2048,
+		sprite_snake,
 	};
 
 	void (*gameloops[N_GAMES])(void) = {

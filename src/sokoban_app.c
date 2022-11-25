@@ -63,7 +63,6 @@ static int levelcellshifts[NGAMES][2] = {
 };
 
 static void draw_level(uint8_t *level, uint8_t levelidx) {
-	//uint8_t *level =  (uint8_t*)sokoban_levels[levelidx];
 	int offx = levelcellshifts[levelidx][0] * 16;
 	int offy = levelcellshifts[levelidx][1] * 16;
 	gfx_FillScreen(WHITE);
@@ -74,23 +73,23 @@ static void draw_level(uint8_t *level, uint8_t levelidx) {
 			int i = y * LEVEL_WIDTH + x;
 			switch (level[i]) {
 				case S_BOX:
-					sprite = sokobox;
+					sprite = sprite_sokoban_box;
 					break;
 				case S_WALL:
-					sprite = sokowall;
+					sprite = sprite_sokoban_wall;
 					break;
 				case S_PLAYER:
 					isplayer=true;
 					switch (dir) {
-						case S_UP: sprite = sokoup; break;
-						case S_DOWN: sprite = sokodown; break;
-						case S_RIGHT: sprite = sokoright; break;
+						case S_UP: sprite = sprite_sokoban_up; break;
+						case S_DOWN: sprite = sprite_sokoban_down; break;
+						case S_RIGHT: sprite = sprite_sokoban_right; break;
 						case S_LEFT:
-						default: sprite = sokoleft; break;
+						default: sprite = sprite_sokoban_left; break;
 					}
 					break;
 				case S_DEST:
-					sprite = sokodest;
+					sprite = sprite_sokoban_goal;
 					break;
 				case S_FLOOR:
 				default:
@@ -99,7 +98,7 @@ static void draw_level(uint8_t *level, uint8_t levelidx) {
 			}
 			if (isplayer) {
 				if (sokoban_levels[levelidx][y][x] == S_DEST)
-					gfx_Sprite(sokodest, x*16+LOFF+offx,y*16+offy-1);
+					gfx_Sprite(sprite_sokoban_goal, x*16+LOFF+offx,y*16+offy-1);
 				gfx_TransparentSprite(sprite, x*16+LOFF+offx,y*16+offy-1);
 			}
 			else if (sprite) {

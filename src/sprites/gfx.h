@@ -7,17 +7,17 @@ extern "C" {
 
 #include "global_palette.h"
 #define sprites_palette_offset 0
-#include "sudoku.h"
-#include "snake.h"
-#include "game2048.h"
-#include "sokoban.h"
-#include "sokobox.h"
-#include "sokowall.h"
-#include "sokodest.h"
-#include "sokoup.h"
-#include "sokodown.h"
-#include "sokoleft.h"
-#include "sokoright.h"
+#include "sprite_2048.h"
+#include "sprite_sokoban_box.h"
+#include "sprite_sokoban_goal.h"
+#include "sprite_sokoban.h"
+#include "sprite_sokoban_up.h"
+#include "sprite_sudoku.h"
+#include "sprite_snake.h"
+#include "sprite_sokoban_down.h"
+#include "sprite_sokoban_left.h"
+#include "sprite_sokoban_right.h"
+#include "sprite_sokoban_wall.h"
 
 #ifdef __cplusplus
 }

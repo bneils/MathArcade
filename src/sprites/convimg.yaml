@@ -17,16 +17,16 @@ palettes:
       - color: {index: 7, r: 64, g: 64, b: 64}     # GRAY2 (darker)
       - color: {index: 8, r: 240, g: 230, b: 220}  # G2048_2
       - color: {index: 9, r: 240, g: 224, b: 200}  # G2048_4
-      - color: {index: 10, r: 240, g: 175, b: 120}       # G2048_8
-      - color: {index: 11, r: 245, g: 150, b: 100}       # G2048_16
-      - color: {index: 12, r: 245, g: 125, b: 95}       # G2048_32
-      - color: {index: 13, r: 245, g: 95, b: 60}       # G2048_64
-      - color: {index: 14, r: 240, g: 205, b: 115}       # G2048_128
-      - color: {index: 15, r: 240, g: 205, b: 100}       # G2048_256
-      - color: {index: 16, r: 240, g: 200, b: 80}       # G2048_512
-      - color: {index: 17, r: 240, g: 200, b: 65}       # G2048_1024
-      - color: {index: 18, r: 240, g: 195, b: 45}       # G2048_2048
-      - color: {index: 19, r: 60, g: 60, b: 50}       # G2048_4096
+      - color: {index: 10, r: 240, g: 175, b: 120} # G2048_8
+      - color: {index: 11, r: 245, g: 150, b: 100} # G2048_16
+      - color: {index: 12, r: 245, g: 125, b: 95}  # G2048_32
+      - color: {index: 13, r: 245, g: 95, b: 60}   # G2048_64
+      - color: {index: 14, r: 240, g: 205, b: 115} # G2048_128
+      - color: {index: 15, r: 240, g: 205, b: 100} # G2048_256
+      - color: {index: 16, r: 240, g: 200, b: 80}  # G2048_512
+      - color: {index: 17, r: 240, g: 200, b: 65}  # G2048_1024
+      - color: {index: 18, r: 240, g: 195, b: 45}  # G2048_2048
+      - color: {index: 19, r: 60, g: 60, b: 50}    # G2048_4096
     images: automatic
 
 converts:
@@ -34,17 +34,17 @@ converts:
     palette: global_palette
     transparent-color-index: 0
     images:
-      - sudoku.png
-      - snake.png
-      - game2048.png
-      - sokoban.png
-      - sokobox.png
-      - sokowall.png
-      - sokodest.png
-      - sokoup.png
-      - sokodown.png
-      - sokoleft.png
-      - sokoright.png
+      - sprite_2048.png
+      - sprite_sokoban_box.png
+      - sprite_sokoban_goal.png
+      - sprite_sokoban.png
+      - sprite_sokoban_up.png
+      - sprite_sudoku.png
+      - sprite_snake.png
+      - sprite_sokoban_down.png
+      - sprite_sokoban_left.png
+      - sprite_sokoban_right.png
+      - sprite_sokoban_wall.png
 outputs:
   - type: c
     include-file: gfx.h
