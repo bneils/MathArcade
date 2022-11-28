@@ -7,6 +7,9 @@
 
 #include "sprites/gfx.h"
 
+/* Be wary that SNAKE_PX_STRIDE needs to be at least 2 
+ * due to an overflow in struct Pos
+ */
 #define SNAKE_PX_STRIDE 10
 #define SNAKE_GRID_WIDTH (GFX_LCD_WIDTH / SNAKE_PX_STRIDE)
 #define SNAKE_GRID_HEIGHT (GFX_LCD_HEIGHT / SNAKE_PX_STRIDE)
@@ -20,7 +23,6 @@
 bool any(const void *, size_t nmemb, size_t size);
 bool all(const void *, size_t nmemb, size_t size);
 int sign(int a);
-void enforce_lt(int *a, int *b);
 uint8_t get_single_key_pressed(void);
 void g_list(const char *s[], int x, int y);
 void g_sel(int x, int y);

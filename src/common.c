@@ -58,11 +58,3 @@ int sign(int a) {
 	if (a < 0) return -1;
 	return 0;
 }
-
-void enforce_lt(int *a, int *b) {
-	if (*a > *b) {
-		int t = *a;
-		*a = *b;
-		*b = t;
-	}
-}
