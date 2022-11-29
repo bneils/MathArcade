@@ -3,8 +3,8 @@
 #include <keypadc.h>
 #include <sys/timers.h>
 #include <stdio.h>
+#include <debug.h>
 
-#include "snake_app.h"
 #include "common.h"
 
 #define vertdata share.snake_bss.vertdata
@@ -35,12 +35,13 @@ struct Snake {
 };
 
 static void move_tail(struct Snake *);
-static struct Pos *next_vertex(struct Pos *vert);
+static inline struct Pos *next_vertex(struct Pos *vert);
 static bool collcheck(struct Snake, struct Pos vert);
 static struct Pos random_vert(void);
 static void draw_snake(struct Snake);
 static void draw_food(struct Pos);
 static void keep_lte(uint8_t *, uint8_t *);
+static bool iteredges(struct Snake snake, struct Pos *dp1, struct Pos *dp2);
 
 void snake_mainloop(void)
 {
@@ -60,16 +61,18 @@ void snake_mainloop(void)
 
 	// Done to avoid repetitive logic
 	food = *snake.head;
-	
+
 	for (;;) {
 		if (snake.head->x == food.x && snake.head->y == food.y) {
 			do {
 				food = random_vert();
-			} while (food.x == 0 || food.y == 0 ||
-				food.x == SNAKE_GRID_WIDTH - 1 || food.y == SNAKE_GRID_HEIGHT - 1 ||
+			} while (
+				food.x == 0 || food.y == 0 ||
+				food.x == SNAKE_GRID_WIDTH - 1 ||
+				food.y == SNAKE_GRID_HEIGHT - 1 ||
 				collcheck(snake, food)
 			);
-			
+
 			tail_growth += FOOD_VALUE;
 			score += FOOD_VALUE;
 		}
@@ -103,18 +106,19 @@ void snake_mainloop(void)
 			return;
 		}
 
-		// This is done because if we check if the head intersects with any part of the snake,
-		// it will always return true because the head is apart of the snake.
+		// This is done because if we check if the head intersects
+		// with any part of the snake, it will always return true
+		// because the head is apart of the snake.
 		struct Pos future_head = *snake.head;
 		future_head.x += direction_table[head_dir][0];
 		future_head.y += direction_table[head_dir][1];
 
 		if (future_head.x < 0 || future_head.x >= SNAKE_GRID_WIDTH ||
-				future_head.y < 0 || future_head.y >= SNAKE_GRID_HEIGHT)
+			future_head.y < 0 || future_head.y >= SNAKE_GRID_HEIGHT)
 			break;
 
 		if (collcheck(snake, future_head)) {
-			*snake.head = future_head; // To show graphically.
+			*snake.head = future_head;
 			break;
 		}
 
@@ -130,7 +134,7 @@ void snake_mainloop(void)
 			--tail_growth;
 		else
 			move_tail(&snake);
-		
+
 		usleep(SNAKE_UWAIT);
 	}
 
@@ -146,7 +150,7 @@ void snake_mainloop(void)
 	// "SCORE: " (7 chars) + score (8 chars) + '\0' (1 char) = 16
 	char str_score_msg[32];
 	snprintf(str_score_msg, sizeof(str_score_msg), "SCORE: %d", score);
-	
+
 	gfx_SetColor(GRAY1);
 	gfx_FillRectangle(15, 15, gfx_GetStringWidth(str_score_msg) + 10, 18);
 	gfx_SetTextFGColor(BLACK);
@@ -162,27 +166,16 @@ void snake_mainloop(void)
 /* Draw the snake's vertices by connecting them */
 static void draw_snake(struct Snake snake)
 {
-	struct Pos *node, *next;
 	gfx_SetColor(SNAKE_COLOR);
 
-	node = snake.tail;
-	while (node != snake.head) {
-		uint8_t x1, x2, y1, y2;
+	struct Pos p1, p2;
 
-		next = next_vertex(node);
-		
-		x1 = node->x;
-		y1 = node->y;
-		x2 = next->x;
-		y2 = next->y;
-		keep_lte(&x1, &x2);
-		keep_lte(&y1, &y2);
-
+	iteredges(snake, NULL, NULL);
+	while (iteredges(snake, &p1, &p2)) {
 		gfx_FillRectangle(
-			x1 * SNAKE_PX_STRIDE, y1 * SNAKE_PX_STRIDE,
-			(x2 - x1 + 1) * SNAKE_PX_STRIDE, (y2 - y1 + 1) * SNAKE_PX_STRIDE
+			p1.x * SNAKE_PX_STRIDE, p1.y * SNAKE_PX_STRIDE,
+			(p2.x - p1.x + 1) * SNAKE_PX_STRIDE, (p2.y - p1.y + 1) * SNAKE_PX_STRIDE
 		);
-		node = next;
 	}
 }
 
@@ -210,23 +203,12 @@ static struct Pos random_vert(void)
  */
 static bool collcheck(struct Snake snake, struct Pos vert)
 {
-	struct Pos *node, *next;
+	struct Pos p1, p2;
 
-	node = snake.tail;
-	while (node != snake.head) {
-		uint8_t x1, x2, y1, y2;
-		next = next_vertex(node);
-		
-		x1 = node->x;
-		y1 = node->y;
-		x2 = next->x;
-		y2 = next->y;
-		keep_lte(&x1, &x2);
-		keep_lte(&y1, &y2);
-
-		if (x1 <= vert.x && vert.x <= x2 && y1 <= vert.y && vert.y <= y2)
+	iteredges(snake, NULL, NULL);
+	while (iteredges(snake, &p1, &p2)) {
+		if (p1.x <= vert.x && vert.x <= p2.x && p1.y <= vert.y && vert.y <= p2.y)
 			return true;
-		node = next;
 	}
 	return false;
 }
@@ -269,10 +251,42 @@ static inline struct Pos *next_vertex(struct Pos *n) {
 }
 
 /* Ensure that a <= b by swapping */
-void keep_lte(uint8_t *a, uint8_t *b) {
+static void keep_lte(uint8_t *a, uint8_t *b) {
 	if (*a > *b) {
 		uint8_t t = *a;
 		*a = *b;
 		*b = t;
 	}
+}
+
+/* Iterates through a snake's edges.
+ * The function must first be called with NULL for dp1 and dp2 to
+ * initialize the function's state to begin at the snake's tail.
+ * Returns false if no edges exist (or if it was just initialized)
+ * or true if dp1 and dp2 were set.
+ */
+static bool iteredges(struct Snake snake, struct Pos *dp1, struct Pos *dp2)
+{
+	static struct Pos *node;
+	struct Pos *next;
+
+	if (dp1 == NULL && dp2 == NULL) {
+		node = snake.tail;
+		return false;
+	}
+
+	if (node == snake.head)
+		node = NULL;
+
+	if (node == NULL)
+		return false;
+
+	next = next_vertex(node);
+	*dp1 = *node;
+	*dp2 = *next;
+	keep_lte(&dp1->x, &dp2->x);
+	keep_lte(&dp1->y, &dp2->y);
+
+	node = next;
+	return true;
 }

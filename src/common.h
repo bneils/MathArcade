@@ -27,6 +27,11 @@ uint8_t get_single_key_pressed(void);
 void g_list(const char *s[], int x, int y);
 void g_sel(int x, int y);
 
+void snake_mainloop(void);
+void sokoban_mainloop(void);
+void sudoku_mainloop(void);
+void game2048_mainloop(void);
+
 struct Pos {
 	uint8_t x, y;
 };

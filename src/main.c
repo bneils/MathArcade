@@ -4,10 +4,6 @@
 #include <ti/getcsc.h>
 
 #include "common.h"
-#include "sudoku_app.h"
-#include "snake_app.h"
-#include "game2048_app.h"
-#include "sokoban_app.h"
 
 #define MENU_LEFT_PADDING 20
 #define MENU_TOP_PADDING 20

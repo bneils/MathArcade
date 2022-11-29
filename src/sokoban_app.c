@@ -5,7 +5,6 @@
 #include <stdbool.h>
 #include <string.h>
 
-#include "sokoban_app.h"
 #include "common.h"
 
 /*
@@ -37,6 +36,14 @@ static bool exitflag;
 
 static void sokoban_player(int levelid);
 static bool validate_board(uint8_t *level, int levelidx);
+
+enum SBTile {
+	S_FLOOR = 0,
+	S_BOX,
+	S_WALL,
+	S_PLAYER,
+	S_DEST,
+};
 
 enum PlayerDirection {
 	S_UP,

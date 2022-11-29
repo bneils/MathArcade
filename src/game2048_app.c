@@ -5,7 +5,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "game2048_app.h"
 #include "common.h"
 
 #define tiles share._2048_bss.tiles
