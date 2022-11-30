@@ -1,3 +1,7 @@
+/* Commons macros and functions that are used between
+ * programs
+ */
+
 #ifndef COMMON_H
 #define COMMON_H
 
@@ -7,7 +11,7 @@
 
 #include "sprites/gfx.h"
 
-/* Be wary that SNAKE_PX_STRIDE needs to be at least 2 
+/* Be wary that SNAKE_PX_STRIDE needs to be at least 2
  * due to an overflow in struct Pos
  */
 #define SNAKE_PX_STRIDE 10
@@ -16,6 +20,9 @@
 #define SNAKE_VERTDATA_LEN (SNAKE_GRID_WIDTH * SNAKE_GRID_HEIGHT)
 #define _2048_GRID_WH 4
 #define SUDOKU_GRID_WH 9
+
+// 2^24 - 1 = 16,777,215 which occupies 8 characters (plus \0).
+#define UINT24_STRING_SIZE (8 + 1)
 
 /* This constant is defined from experience. */
 #define CHAR_HEIGHT 8

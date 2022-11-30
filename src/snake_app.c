@@ -64,9 +64,9 @@ void snake_mainloop(void)
 
 	for (;;) {
 		if (snake.head->x == food.x && snake.head->y == food.y) {
-			do {
+			do
 				food = random_vert();
-			} while (
+			while (
 				food.x == 0 || food.y == 0 ||
 				food.x == SNAKE_GRID_WIDTH - 1 ||
 				food.y == SNAKE_GRID_HEIGHT - 1 ||
@@ -146,15 +146,14 @@ void snake_mainloop(void)
 		SNAKE_PX_STRIDE, SNAKE_PX_STRIDE
 	);
 
-	// 2^24 - 1 = 16,777,215 (8 chars)
 	// "SCORE: " (7 chars) + score (8 chars) + '\0' (1 char) = 16
-	char str_score_msg[32];
-	snprintf(str_score_msg, sizeof(str_score_msg), "SCORE: %d", score);
+	char score_msg[32];
+	snprintf(score_msg, sizeof score_msg, "SCORE: %d", score);
 
 	gfx_SetColor(GRAY1);
-	gfx_FillRectangle(15, 15, gfx_GetStringWidth(str_score_msg) + 10, 18);
+	gfx_FillRectangle(15, 15, gfx_GetStringWidth(score_msg) + 10, 18);
 	gfx_SetTextFGColor(BLACK);
-	gfx_PrintStringXY(str_score_msg, 20, 20);
+	gfx_PrintStringXY(score_msg, 20, 20);
 	gfx_SwapDraw();
 
 	usleep(500000);
@@ -174,7 +173,8 @@ static void draw_snake(struct Snake snake)
 	while (iteredges(snake, &p1, &p2)) {
 		gfx_FillRectangle(
 			p1.x * SNAKE_PX_STRIDE, p1.y * SNAKE_PX_STRIDE,
-			(p2.x - p1.x + 1) * SNAKE_PX_STRIDE, (p2.y - p1.y + 1) * SNAKE_PX_STRIDE
+			(p2.x - p1.x + 1) * SNAKE_PX_STRIDE,
+			(p2.y - p1.y + 1) * SNAKE_PX_STRIDE
 		);
 	}
 }
@@ -217,7 +217,8 @@ static bool collcheck(struct Snake snake, struct Pos vert)
  * vertex in the snake vertex chain and changes the tail
  * if it has reached the next vertex.
  */
-static void move_tail(struct Snake *snake) {
+static void move_tail(struct Snake *snake)
+{
 	struct Pos *next;
 	int8_t dx, dy;
 
@@ -245,13 +246,15 @@ static void move_tail(struct Snake *snake) {
 /* Since vertdata is a circular array, this function simply returns
  * the next element after n.
  */
-static inline struct Pos *next_vertex(struct Pos *n) {
+static inline struct Pos *next_vertex(struct Pos *n)
+{
 	++n;
 	return (n <= &vertdata[SNAKE_VERTDATA_LEN - 1]) ? n : vertdata;
 }
 
 /* Ensure that a <= b by swapping */
-static void keep_lte(uint8_t *a, uint8_t *b) {
+static void keep_lte(uint8_t *a, uint8_t *b)
+{
 	if (*a > *b) {
 		uint8_t t = *a;
 		*a = *b;

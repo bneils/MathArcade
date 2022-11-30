@@ -8,18 +8,18 @@
 #include "common.h"
 
 /*
-To make this game you need the sprites:
-brick wall
-checkered floor
-box
-4-way player
-box destination
+	To make this game you need the sprites:
+	brick wall
+	checkered floor
+	box
+	4-way player
+	box destination
 
-all sprites will be 16x16
-there are 4 tile sprites + 4 player sprites
-that occupies 2kb.
+	all sprites will be 16x16
+	there are 4 tile sprites + 4 player
+	that occupies 2kb.
 
-the 8 levels occupy ~kb
+	the 8 levels occupy ~kb
 */
 
 // *determined by a script
@@ -54,8 +54,6 @@ enum PlayerDirection {
 
 int playerx, playery;
 enum PlayerDirection dir = S_DOWN;
-
-
 
 // heuristic
 static int levelcellshifts[NGAMES][2] = {
@@ -193,7 +191,7 @@ found_player:
 		nextx = playerx+dx;
 		nexty = playery+dy;
 		bool can_move;
-		
+
 		if (sokoban_level[nexty][nextx] == S_WALL) can_move = false;
 		else if (sokoban_level[nexty][nextx] == S_FLOOR || sokoban_level[nexty][nextx] == S_DEST) can_move = true;
 		else if (sokoban_level[nexty][nextx] == S_BOX) {
@@ -221,7 +219,7 @@ found_player:
 		if (lasttile == S_BOX) lasttile = S_FLOOR; // bug ig
 
 		sokoban_level[playery][playerx] = S_PLAYER;
-		
+
 		if (validate_board((uint8_t *)sokoban_level, levelid))
 			return; //  bc you completed it
 	}

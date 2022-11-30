@@ -24,8 +24,9 @@ static void change_candidate_set_at_cur(int n, bool presence);
 static inline void try_dec_coord(uint24_t *);
 static inline void try_inc_coord(uint24_t *);
 
-// The amount of space on the left/right sides of the screen when
-// trying to fit the largest possible square inside the screen.
+/* The amount of space on the left/right sides of the screen when
+ * trying to fit the largest possible square inside the screen.
+ */
 #define SQUARE_LRMARGIN ((LCD_WIDTH - LCD_HEIGHT) / 2)
 #define CELL_WIDTH (LCD_HEIGHT / 9)
 
@@ -37,22 +38,20 @@ static inline void try_inc_coord(uint24_t *);
 #define BOX_THICKNESS 2
 #define CHAR_HEIGHT 8
 
-// How many pixels need to be subtracted from the lines due to integer
-// divison.
+// How many pixels need to be subtracted from the lines due to integer divison.
 #define MAGIC_INTEGER_ERR 7
 
-// Sudoku data will be kept in sudoku_data.c
-
-static void draw(void) {
+static void draw(void)
+{
 	gfx_FillScreen(WHITE);
 
 	gfx_SetColor(GRAY1);
-	gfx_FillRectangle(SQUARE_LRMARGIN*2 + curx * CELL_WIDTH + 1, cury * CELL_WIDTH + 1, CELL_WIDTH - 1, CELL_WIDTH - 1);
+	gfx_FillRectangle(SQUARE_LRMARGIN*2 + curx * CELL_WIDTH + 1,
+		cury * CELL_WIDTH + 1, CELL_WIDTH - 1, CELL_WIDTH - 1);
 	gfx_SetColor(BLACK);
 	gfx_SetTextFGColor(BLACK);
 
-	// I want a handy bar on the left that tells the user what they can place
-	// in an *empty* cell.
+	// Handy tip bar on the left of numbers they can place at the cursor.
 	for (int i = 1; i <= 9; ++i) {
 		if (tiles[cury][curx] == 0 && candidate_set[cury][curx][i]) {
 			gfx_SetTextXY(5, 5 + i * CHAR_HEIGHT);
@@ -61,44 +60,57 @@ static void draw(void) {
 	}
 
 	for (int i = 0; i <= 9; ++i) {
-		// the offset uses the smaller dimension, which in this
-		// case is the height of the screen.
+		/* The offset uses the smaller dimension, which in this
+		 * case is the height of the screen.
+		 */
 		int offset = LCD_HEIGHT / 9 * i;
-		gfx_HorizLine(SQUARE_LRMARGIN*2, offset, LCD_WIDTH - SQUARE_LRMARGIN * 2 - MAGIC_INTEGER_ERR);
-		gfx_VertLine(offset + SQUARE_LRMARGIN*2, 0, LCD_HEIGHT - MAGIC_INTEGER_ERR);
+		gfx_HorizLine(SQUARE_LRMARGIN*2, offset, LCD_WIDTH
+			- SQUARE_LRMARGIN * 2 - MAGIC_INTEGER_ERR);
+		gfx_VertLine(offset + SQUARE_LRMARGIN*2, 0, LCD_HEIGHT
+			- MAGIC_INTEGER_ERR);
 	}
-	
-	// draw the thick lines to recognize the boxes
+
+	// Draw the thick lines to recognize the boxes
 	for (int i = 0; i <= 9; i += 3) {
 		int offset = LCD_HEIGHT / 9 * i;
-		//horiz
-		gfx_FillRectangle(SQUARE_LRMARGIN*2 - BOX_THICKNESS, offset - BOX_THICKNESS, 
-			LCD_HEIGHT + BOX_THICKNESS * 2 - MAGIC_INTEGER_ERR, BOX_THICKNESS * 2);
-		//vert
+		// Horiz
+		gfx_FillRectangle(SQUARE_LRMARGIN*2 - BOX_THICKNESS, offset
+			- BOX_THICKNESS,
+			LCD_HEIGHT + BOX_THICKNESS * 2 - MAGIC_INTEGER_ERR,
+			BOX_THICKNESS * 2);
+		// Vert
 		gfx_FillRectangle(offset + SQUARE_LRMARGIN*2 - BOX_THICKNESS, 0,
-			BOX_THICKNESS * 2, LCD_HEIGHT + BOX_THICKNESS * 2 - MAGIC_INTEGER_ERR - 1);
+			BOX_THICKNESS * 2, LCD_HEIGHT + BOX_THICKNESS * 2
+			- MAGIC_INTEGER_ERR - 1);
 	}
-	
+
 	for (int y = 0; y < 9; ++y) {
 		for (int x = 0; x < 9; ++x) {
 			if (tiles[y][x] == 0)
 				continue;
 			char digit = '0' + tiles[y][x];
-			gfx_SetTextFGColor( (tiles_initial[y * SUDOKU_GRID_WH + x] == 0) ? RED : BLACK );
-			gfx_SetTextXY(x * CELL_WIDTH + SQUARE_LRMARGIN*2 + CELL_NUM_PADDING, y * CELL_WIDTH + CELL_NUM_PADDING);
+			gfx_SetTextFGColor(
+				(tiles_initial[y * SUDOKU_GRID_WH + x] == 0) ?
+				RED : BLACK);
+			gfx_SetTextXY(x * CELL_WIDTH
+				+ SQUARE_LRMARGIN * 2 + CELL_NUM_PADDING,
+				y * CELL_WIDTH + CELL_NUM_PADDING);
 			gfx_PrintChar(digit);
 		}
 	}
 }
 
-static void load_random_board(void) {
-	extern uint8_t sudoku_boards[NUM_SUDOKU_BOARDS][SUDOKU_GRID_WH][SUDOKU_GRID_WH];
+static void load_random_board(void)
+{
+	extern uint8_t
+	sudoku_boards[NUM_SUDOKU_BOARDS][SUDOKU_GRID_WH][SUDOKU_GRID_WH];
 	int i = randInt(0, NUM_SUDOKU_BOARDS - 1);
 	tiles_initial = (uint8_t *) sudoku_boards[i];
-	memcpy(tiles, tiles_initial, sizeof(tiles));
+	memcpy(tiles, tiles_initial, sizeof tiles);
 }
 
-void sudoku_mainloop(void) {
+void sudoku_mainloop(void)
+{
 	load_random_board();
 	update_candidate_set();
 
@@ -158,7 +170,7 @@ void sudoku_mainloop(void) {
 				num_to_insert = 9;
 				break;
 		}
-	
+
 		if (validate_num_insert_at_cur(num_to_insert)) {
 			change_candidate_set_at_cur(tiles[cury][curx], true);
 			tiles[cury][curx] = num_to_insert;
@@ -185,16 +197,17 @@ void sudoku_mainloop(void) {
 	}
 }
 
-static bool validate_num_insert_at_cur(int n) {
-	if (n < 0 || n > 9) {
+static bool validate_num_insert_at_cur(int n)
+{
+	if (n < 0 || n > 9)
 		return false;
-	}
-	if (tiles_initial[cury * SUDOKU_GRID_WH + curx] != 0) {
+
+	if (tiles_initial[cury * SUDOKU_GRID_WH + curx] != 0)
 		return false;
-	}
-	if (n == 0) {
+
+	if (n == 0)
 		return true;
-	}
+
 
 	uint24_t box_y = cury / 3 * 3;
 	uint24_t box_x = curx / 3 * 3;
@@ -202,39 +215,42 @@ static bool validate_num_insert_at_cur(int n) {
 	for (int i = 0; i < 9; ++i) {
 		if (tiles[i][curx] == n ||
 			tiles[cury][i] == n ||
-			tiles[box_y + i / 3][box_x + i % 3] == n) {
+			tiles[box_y + i / 3][box_x + i % 3] == n)
 			return false;
-		}
 	}
 	return true;
 }
 
-static inline void try_dec_coord(uint24_t *c) {
+static inline void try_dec_coord(uint24_t *c)
+{
 	if (*c > 0)
 		--*c;
 }
 
-static inline void try_inc_coord(uint24_t *c) {
+static inline void try_inc_coord(uint24_t *c)
+{
 	if (*c < SUDOKU_GRID_WH - 1)
 		++*c;
 }
 
-static void update_candidate_set(void) {
+static void update_candidate_set(void)
+{
 	uint24_t tempy, tempx;
 	tempy = cury;
 	tempx = curx;
 	for (cury = 0; cury < SUDOKU_GRID_WH; ++cury) {
 		for (curx = 0; curx < SUDOKU_GRID_WH; ++curx) {
-			for (int n = 0; n <= 9; ++n) {
-				candidate_set[cury][curx][n] = validate_num_insert_at_cur(n);
-			}
+			for (int n = 0; n <= 9; ++n)
+				candidate_set[cury][curx][n] =
+					validate_num_insert_at_cur(n);
 		}
 	}
 	cury = tempy;
 	curx = tempx;
 }
 
-static void change_candidate_set_at_cur(int n, bool presence) {
+static void change_candidate_set_at_cur(int n, bool presence)
+{
 	if (n == 0)
 		return;
 	uint24_t box_y = cury / 3 * 3;
