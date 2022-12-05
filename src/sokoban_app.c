@@ -7,231 +7,214 @@
 
 #include "common.h"
 
-/*
-	To make this game you need the sprites:
-	brick wall
-	checkered floor
-	box
-	4-way player
-	box destination
+#define level         share.sokoban_bss.level
+#define playerx       share.sokoban_bss.playerx
+#define playery       share.sokoban_bss.playery
+#define width         share.sokoban_bss.width
+#define height        share.sokoban_bss.height
+#define encoded_size  share.sokoban_bss.size
+#define player_sprite share.sokoban_bss.player_sprite
 
-	all sprites will be 16x16
-	there are 4 tile sprites + 4 player
-	that occupies 2kb.
+/* Sokoban levels taken from
+ * http://www.sneezingtiger.com/sokoban/levels/microbanText.html
+ *
+ * The level format is as follows:
+ * width (1B)
+ * height (1B)
+ * size (2B)
+ * player x (1B)
+ * player y (1B)
+ * level data (size B)...
+ *
+ * Each byte in the level data contains two LevelTokens
+ * If has_rle_specifier is 1, the next token is a 4-bit unsigned integer - 2.
+ * The current token will be repeated that number of times.
+ *
+ * Each token has the bitpattern:
+ *  BOX_TILE, GOAL_TILE, WALL/FLOOR TILE, IS_RLE
+ */
+#define BOX_BIT  0b1000
+#define GOAL_BIT 0b0100
+#define WALL_BIT 0b0010
+#define RLE_BIT  0b0001
 
-	the 8 levels occupy ~kb
-*/
+#define HEADER_SIZE (1 + 1 + 2 + 1 + 1)
+#define CELL_PX_WIDTH 16
 
-// *determined by a script
-#define LEVEL_WIDTH 22
-#define LEVEL_HEIGHT 17
-#define NGAMES 8
+#define LEVELIDX(x, y) ((x) + (y) * width)
 
-//this is negative
-#define LOFF ((GFX_LCD_WIDTH - (LEVEL_WIDTH * 16))/2)
-#define pos(x, y) ((x)+(y)*LEVEL_WIDTH)
+static bool load_level(int levelid);
+static void draw_level(void);
+static bool play(void);
+static bool check_level_complete(void);
 
-extern uint8_t sokoban_levels[NGAMES][LEVEL_HEIGHT][LEVEL_WIDTH];
-static bool exitflag;
+static void draw_level(void)
+{
+	int offx = (LCD_WIDTH / CELL_PX_WIDTH - width)
+		* CELL_PX_WIDTH / 2;
+	int offy = (LCD_HEIGHT / CELL_PX_WIDTH - height)
+		* CELL_PX_WIDTH / 2;
 
-static void sokoban_player(int levelid);
-static bool validate_board(uint8_t *level, int levelidx);
-
-enum SBTile {
-	S_FLOOR = 0,
-	S_BOX,
-	S_WALL,
-	S_PLAYER,
-	S_DEST,
-};
-
-enum PlayerDirection {
-	S_UP,
-	S_DOWN,
-	S_LEFT,
-	S_RIGHT
-};
-
-int playerx, playery;
-enum PlayerDirection dir = S_DOWN;
-
-// heuristic
-static int levelcellshifts[NGAMES][2] = {
-	{0, 2},
-	{3, 2},
-	{2, 2},
-	{0, 1},
-	{2, 1},
-	{4, 2},
-	{4, 2},
-	{3, -1},
-};
-
-static void draw_level(uint8_t *level, uint8_t levelidx) {
-	int offx = levelcellshifts[levelidx][0] * 16;
-	int offy = levelcellshifts[levelidx][1] * 16;
 	gfx_FillScreen(WHITE);
-	for (int y = 0; y < LEVEL_HEIGHT; ++y) {
-		for (int x = 0; x < LEVEL_WIDTH; ++x) {
-			bool isplayer=false;
-			gfx_sprite_t *sprite;
-			int i = y * LEVEL_WIDTH + x;
-			switch (level[i]) {
-				case S_BOX:
-					sprite = sprite_sokoban_box;
-					break;
-				case S_WALL:
-					sprite = sprite_sokoban_wall;
-					break;
-				case S_PLAYER:
-					isplayer=true;
-					switch (dir) {
-						case S_UP: sprite = sprite_sokoban_up; break;
-						case S_DOWN: sprite = sprite_sokoban_down; break;
-						case S_RIGHT: sprite = sprite_sokoban_right; break;
-						case S_LEFT:
-						default: sprite = sprite_sokoban_left; break;
-					}
-					break;
-				case S_DEST:
-					sprite = sprite_sokoban_goal;
-					break;
-				case S_FLOOR:
-				default:
-					sprite=NULL;
-					break;
+	for (int y = 0; y < height; ++y) {
+		for (int x = 0; x < width; ++x) {
+			int px = offx + x * CELL_PX_WIDTH;
+			int py = offy + y * CELL_PX_WIDTH;
+			uint8_t tile = level[LEVELIDX(x, y)];
+
+			if (tile & WALL_BIT) {
+				gfx_Sprite(sprite_sokoban_wall, px, py);
+				continue;
 			}
-			if (isplayer) {
-				if (sokoban_levels[levelidx][y][x] == S_DEST)
-					gfx_Sprite(sprite_sokoban_goal, x*16+LOFF+offx,y*16+offy-1);
-				gfx_TransparentSprite(sprite, x*16+LOFF+offx,y*16+offy-1);
-			}
-			else if (sprite) {
-				gfx_Sprite(sprite, x*16+LOFF+offx,y*16+offy-1);
-			}
+
+			if (tile & GOAL_BIT)
+				gfx_Sprite(sprite_sokoban_goal, px, py);
+			if (tile & BOX_BIT)
+				gfx_Sprite(sprite_sokoban_box, px, py);
 		}
 	}
+	gfx_TransparentSprite(player_sprite,
+		playerx * CELL_PX_WIDTH + offx,
+		playery * CELL_PX_WIDTH + offy);
 }
 
-void sokoban_mainloop(void) {
-	exitflag = false;
-	for (int i = 0; i < NGAMES; ++i) {
+void sokoban_mainloop(void)
+{
+	for (int i = 0; i < SOKOBAN_NUM_LEVELS; ++i) {
 		gfx_FillScreen(WHITE);
+
 		char s[16];
 		sprintf(s, "LEVEL %d", i);
-		gfx_PrintStringXY(s, (GFX_LCD_WIDTH - gfx_GetStringWidth(s) )/ 2, GFX_LCD_HEIGHT / 2);
+		gfx_PrintStringXY(s,
+			(GFX_LCD_WIDTH - gfx_GetStringWidth(s)) / 2,
+			GFX_LCD_HEIGHT / 2);
+
 		gfx_SwapDraw();
 		usleep(1000000);
-		sokoban_player(i);
-		if (exitflag) return;
+		load_level(i);
+		if (!play())
+			return;
 	}
 }
 
-static void sokoban_player(int levelid) {
-	static uint8_t sokoban_level[LEVEL_HEIGHT][LEVEL_WIDTH];
-	uint8_t *sokoban_old = (uint8_t *) sokoban_levels[levelid];
-	memcpy(sokoban_level, sokoban_levels[levelid], sizeof(sokoban_levels[0]));
-
-	int playerx, playery;
-	enum SBTile lasttile = S_FLOOR; // that the player was on *
-
-	for (int y = 0; y < LEVEL_HEIGHT; ++y) {
-		for (int x = 0; x < LEVEL_WIDTH; ++x) {
-			if (sokoban_level[y][x] == S_PLAYER) {
-				playerx = x;
-				playery = y;
-				goto found_player;
-			}
-		}
-	}
-	return; // did not find player :(
-found_player:
+static bool play(void) {
+	player_sprite = sprite_sokoban_left;
 	for (;;) {
 		int key;
 
-		draw_level((uint8_t *) sokoban_level, levelid);
+		draw_level();
 		gfx_SwapDraw();
 
 		while (!(key = os_GetCSC()))
 			;
-		//validate if the player can move there.
-		//a player can move somewhere if:
-		//  there is at least 1 floor/dest in the direction they are going before a ray hits a wall
+		/* Validate if the player can move there.
+		 * a player can move somewhere if:
+		 * there is at least 1 floor/dest in the direction they are
+		 * going before a ray hits a wall
+		 */
 		int dx, dy;
 
 		switch (key) {
-			case sk_Left:
-				dir = S_LEFT;
-				dx = -1;
-				dy = 0;
-				break;
-			case sk_Right:
-				dir = S_RIGHT;
-				dx = 1;
-				dy = 0;
-				break;
-			case sk_Up:
-				dir = S_UP;
-				dx = 0;
-				dy = -1;
-				break;
-			case sk_Down:
-				dir = S_DOWN;
-				dx = 0;
-				dy = 1;
-				break;
-			case sk_Clear:
-				exitflag=true;
-				return;
-			default:
-				continue; // bad key, don't do anything.
-		}
-
-		int nextx, nexty;
-		nextx = playerx+dx;
-		nexty = playery+dy;
-		bool can_move;
-
-		if (sokoban_level[nexty][nextx] == S_WALL) can_move = false;
-		else if (sokoban_level[nexty][nextx] == S_FLOOR || sokoban_level[nexty][nextx] == S_DEST) can_move = true;
-		else if (sokoban_level[nexty][nextx] == S_BOX) {
-			nextx+=dx;
-			nexty+=dy;
-			can_move = (sokoban_level[nexty][nextx] == S_FLOOR || sokoban_level[nexty][nextx] == S_DEST);
-		} else {
-			continue; // dunno?
-		}
-		if (!can_move) {
+		case sk_Left:
+			player_sprite = sprite_sokoban_left;
+			dx = -1;
+			dy = 0;
+			break;
+		case sk_Right:
+			player_sprite = sprite_sokoban_right;
+			dx = 1;
+			dy = 0;
+			break;
+		case sk_Up:
+			player_sprite = sprite_sokoban_up;
+			dx = 0;
+			dy = -1;
+			break;
+		case sk_Down:
+			player_sprite = sprite_sokoban_down;
+			dx = 0;
+			dy = 1;
+			break;
+		case sk_Clear:
+			return false;
+		default:
+			// bad key, don't do anything.
 			continue;
 		}
-		sokoban_level[playery][playerx] = lasttile;
+
+		uint8_t *next1_tile, *next2_tile;
+
+		next1_tile = &level[LEVELIDX(playerx + dx, playery + dy)];
+		next2_tile = &level[
+			LEVELIDX(playerx + dx * 2, playery + dy * 2)
+		];
+
+		if (*next1_tile & WALL_BIT)
+			continue;
+		if (*next1_tile & BOX_BIT) {
+			if (*next2_tile & (WALL_BIT | BOX_BIT))
+				continue;
+			*next2_tile |= BOX_BIT;
+			*next1_tile &= ~BOX_BIT;
+		}
+
 		playerx += dx;
 		playery += dy;
-		lasttile = sokoban_level[playery][playerx];
-		// first case.
-		if (sokoban_level[playery][playerx] == S_BOX) {
-			sokoban_level[playery+dy][playerx+dx] = S_BOX;
-			//ok so, the box may be located on a DEST tile (because we moved it there.)
-			//so it is sufficient to check the original (old) tiledata to see if a destination was originally there.
-			if (sokoban_old[pos(playerx,playery)] == S_DEST)
-				lasttile = S_DEST; // this is done because when the player moves off it, the tile will be restored (for visual aspects)
-		}
-		if (lasttile == S_BOX) lasttile = S_FLOOR; // bug ig
 
-		sokoban_level[playery][playerx] = S_PLAYER;
-
-		if (validate_board((uint8_t *)sokoban_level, levelid))
-			return; //  bc you completed it
+		if (check_level_complete())
+			return true;
 	}
 }
 
-static bool validate_board(uint8_t *level, int levelidx) {
-	uint8_t *levelold = (uint8_t *)sokoban_levels[levelidx];
-	for (int i = 0; i < LEVEL_WIDTH*LEVEL_HEIGHT; ++i) {
-		if (*levelold == S_DEST && *level != S_BOX)
+/* Decode a level that is encoded with run-length encoding and initialize its
+ * metadata. The size of this procedure should be smaller than the savings
+ * gained from the compression.
+ *
+ * levelid's range is [0, SOKOBAN_NUM_LEVELS - 1]
+ *
+ * Returns true if the level was loaded successfully.
+ */
+static bool load_level(int levelid)
+{
+	uint8_t *src, *dest, tile;
+	bool rle;
+
+	if (levelid < 0 || levelid >= SOKOBAN_NUM_LEVELS)
+		return false;
+
+	src = &sokoban_levels[sokoban_level_table[levelid]];
+	width = src[0];
+	height = src[1];
+	encoded_size = (src[2] << 8) | src[3];
+	playerx = src[4];
+	playery = src[5];
+
+	dest = level;
+	rle = false;
+
+	for (int i = 0; i < encoded_size; ++i) {
+		uint8_t pair = src[HEADER_SIZE + i];
+		for (int j = 0; j < 2; ++j) {
+			uint8_t nibble = (pair >> 4) & 0xf;
+
+			if (rle)
+				for (int reps = nibble + 2; reps > 0; --reps)
+					*dest++ = tile;
+			else
+				*dest++ = tile = nibble & 0xe;
+			rle = nibble & RLE_BIT;
+			pair <<= 4;
+		}
+	}
+	return true;
+}
+
+/* Ensure that every box tile is on a goal tile */
+static bool check_level_complete(void) {
+	for (int i = 0; i < width * height; ++i) {
+		uint8_t attr = level[i] & (GOAL_BIT | BOX_BIT);
+		if (attr == GOAL_BIT || attr == BOX_BIT)
 			return false;
-		++levelold;
-		++level;
 	}
 	return true;
 }

@@ -11,6 +11,10 @@
 
 #include "sprites/gfx.h"
 
+// I'm including this because the union declaration needs to know how much
+// space to allocate for every Sokoban level.
+#include "sokoban_data.h"
+
 /* Be wary that SNAKE_PX_STRIDE needs to be at least 2
  * due to an overflow in struct Pos
  */
@@ -90,6 +94,20 @@ union Shared {
 		uint24_t curx, cury;
 		bool candidate_set[SUDOKU_GRID_WH][SUDOKU_GRID_WH][10];
 	} sudoku_bss;
+
+	struct {
+		// The order of these fields must be maintained (it is easier
+		// to copy them)
+		// --->
+		uint8_t width, height;
+		uint16_t size;
+		uint8_t playerx, playery;
+		// <---
+
+		gfx_sprite_t *player_sprite;
+
+		uint8_t level[SOKOBAN_MAX_LEVEL_SIZE];
+	} sokoban_bss;
 };
 
 extern union Shared share;
