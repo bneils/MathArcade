@@ -4,6 +4,8 @@ sprite_2048.h
 sprite_2048.c
 sprite_sokoban_box.h
 sprite_sokoban_box.c
+sprite_sokoban_gold_box.h
+sprite_sokoban_gold_box.c
 sprite_sokoban_goal.h
 sprite_sokoban_goal.c
 sprite_sokoban.h

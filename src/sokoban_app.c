@@ -4,16 +4,17 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
+#include <compression.h>
 #include <debug.h>
 
 #include "common.h"
 
+#define levels        share.sokoban_bss.levels
 #define level         share.sokoban_bss.level
 #define playerx       share.sokoban_bss.playerx
 #define playery       share.sokoban_bss.playery
 #define width         share.sokoban_bss.width
 #define height        share.sokoban_bss.height
-#define encoded_size  share.sokoban_bss.size
 #define player_sprite share.sokoban_bss.player_sprite
 
 /* Sokoban levels taken from
@@ -22,14 +23,9 @@
  * The level format is as follows:
  * width (1B)
  * height (1B)
- * size (2B)
  * player x (1B)
  * player y (1B)
  * level data (size B)...
- *
- * Each byte in the level data contains two LevelTokens
- * If has_rle_specifier is 1, the next token is a 4-bit unsigned integer - 2.
- * The current token will be repeated that number of times.
  *
  * Each token has the bitpattern:
  *  BOX_TILE, GOAL_TILE, WALL/FLOOR TILE, IS_RLE
@@ -39,12 +35,12 @@
 #define WALL_BIT 0b0010
 #define RLE_BIT  0b0001
 
-#define HEADER_SIZE (1 + 1 + 2 + 1 + 1)
+#define HEADER_SIZE 4
 #define CELL_PX_WIDTH 16
 
 #define LEVELIDX(x, y) ((x) + (y) * width)
 
-static bool load_level(int levelid);
+static void load_level(int levelid);
 static void draw_level(void);
 static bool play(void);
 static bool check_level_complete(void);
@@ -63,15 +59,27 @@ static void draw_level(void)
 			int py = offy + y * CELL_PX_WIDTH;
 			uint8_t tile = level[LEVELIDX(x, y)];
 
+			gfx_sprite_t *sprite;
+
 			if (tile & WALL_BIT) {
-				gfx_Sprite(sprite_sokoban_wall, px, py);
-				continue;
+				sprite = sprite_sokoban_wall;
+			} else {
+				switch (tile & (GOAL_BIT | BOX_BIT)) {
+				case GOAL_BIT:
+					sprite = sprite_sokoban_goal;
+					break;
+				case BOX_BIT:
+					sprite = sprite_sokoban_box;
+					break;
+				case BOX_BIT | GOAL_BIT:
+					sprite = sprite_sokoban_gold_box;
+					break;
+				default:
+					continue;
+				}
 			}
 
-			if (tile & GOAL_BIT)
-				gfx_Sprite(sprite_sokoban_goal, px, py);
-			if (tile & BOX_BIT)
-				gfx_Sprite(sprite_sokoban_box, px, py);
+			gfx_Sprite(sprite, px, py);
 		}
 	}
 	gfx_TransparentSprite(player_sprite,
@@ -81,6 +89,14 @@ static void draw_level(void)
 
 void sokoban_mainloop(void)
 {
+	zx7_Decompress(levels, sokoban_levels);
+#ifdef DEBUG
+	for (int i = 0; i < SOKOBAN_LEVELS_SIZE; i++) {
+		dbg_printf("%02x ", levels[i]);
+		if ((i + 1) % 16 == 0) dbg_printf("\n");
+	}
+#endif
+
 	for (int i = 0; i < SOKOBAN_NUM_LEVELS; ++i) {
 		gfx_FillScreen(WHITE);
 
@@ -98,7 +114,8 @@ void sokoban_mainloop(void)
 	}
 }
 
-static bool play(void) {
+static bool play(void)
+{
 	player_sprite = sprite_sokoban_left;
 	for (;;) {
 		int key;
@@ -167,57 +184,23 @@ static bool play(void) {
 	}
 }
 
-/* Decode a level that is encoded with run-length encoding and initialize its
- * metadata. The size of this procedure should be smaller than the savings
- * gained from the compression.
- *
- * levelid's range is [0, SOKOBAN_NUM_LEVELS - 1]
- *
- * Returns true if the level was loaded successfully.
- */
-static bool load_level(int levelid)
-{
-	uint8_t *src, *dest, tile;
-	bool rle;
-
-	if (levelid < 0 || levelid >= SOKOBAN_NUM_LEVELS)
-		return false;
-
-	src = &sokoban_levels[sokoban_level_table[levelid]];
-	width = src[0];
-	height = src[1];
-	encoded_size = (src[2] << 8) | src[3];
-	playerx = src[4];
-	playery = src[5];
-
-	dest = level;
-	rle = false;
-
-	for (int i = 0; i < encoded_size; ++i) {
-		uint8_t pair = src[HEADER_SIZE + i];
-		for (int j = 0; j < 2; ++j) {
-			uint8_t nibble = (pair >> 4) & 0xf;
-
-			if (rle) {
-				for (int reps = nibble + 2; reps > 0; --reps)
-					*dest++ = tile;
-				rle = false;
-			} else {
-				*dest++ = tile = nibble & ~RLE_BIT;
-				rle = nibble & RLE_BIT;
-			}
-			pair <<= 4;
-		}
-	}
-	return true;
-}
-
 /* Ensure that every box tile is on a goal tile */
-static bool check_level_complete(void) {
+static bool check_level_complete(void)
+{
 	for (int i = 0; i < width * height; ++i) {
 		uint8_t attr = level[i] & (GOAL_BIT | BOX_BIT);
 		if (attr == GOAL_BIT || attr == BOX_BIT)
 			return false;
 	}
 	return true;
+}
+
+static void load_level(int levelid)
+{
+	uint8_t *p = &levels[sokoban_level_table[levelid]];
+	width = p[0];
+	height = p[1];
+	playerx = p[2];
+	playery = p[3];
+	memcpy(level, &p[HEADER_SIZE], width * height);
 }

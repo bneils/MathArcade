@@ -9,6 +9,7 @@ extern "C" {
 #define sprites_palette_offset 0
 #include "sprite_2048.h"
 #include "sprite_sokoban_box.h"
+#include "sprite_sokoban_gold_box.h"
 #include "sprite_sokoban_goal.h"
 #include "sprite_sokoban.h"
 #include "sprite_sokoban_up.h"

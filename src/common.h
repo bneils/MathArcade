@@ -100,13 +100,13 @@ union Shared {
 		// to copy them)
 		// --->
 		uint8_t width, height;
-		uint16_t size;
 		uint8_t playerx, playery;
 		// <---
 
 		gfx_sprite_t *player_sprite;
 
 		uint8_t level[SOKOBAN_MAX_LEVEL_SIZE];
+		uint8_t levels[SOKOBAN_LEVELS_SIZE];
 	} sokoban_bss;
 };
 

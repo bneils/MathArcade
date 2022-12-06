@@ -36,6 +36,7 @@ converts:
     images:
       - sprite_2048.png
       - sprite_sokoban_box.png
+      - sprite_sokoban_gold_box.png
       - sprite_sokoban_goal.png
       - sprite_sokoban.png
       - sprite_sokoban_up.png
