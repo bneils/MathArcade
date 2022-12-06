@@ -7,7 +7,7 @@ DESCRIPTION = "A collection of fun games to play"
 COMPRESSED = NO
 ARCHIVED = YES
 
-CFLAGS = -Wall -Wextra -Oz
+CFLAGS = -Wall -Wextra -Oz 
 CXXFLAGS = -Wall -Wextra -Oz
 
 # ----------------------------

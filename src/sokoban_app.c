@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
+#include <debug.h>
 
 #include "common.h"
 
@@ -197,12 +198,14 @@ static bool load_level(int levelid)
 		for (int j = 0; j < 2; ++j) {
 			uint8_t nibble = (pair >> 4) & 0xf;
 
-			if (rle)
+			if (rle) {
 				for (int reps = nibble + 2; reps > 0; --reps)
 					*dest++ = tile;
-			else
-				*dest++ = tile = nibble & 0xe;
-			rle = nibble & RLE_BIT;
+				rle = false;
+			} else {
+				*dest++ = tile = nibble & ~RLE_BIT;
+				rle = nibble & RLE_BIT;
+			}
 			pair <<= 4;
 		}
 	}

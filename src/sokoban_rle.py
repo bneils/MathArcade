@@ -18,6 +18,8 @@ PLAYER_ON_GOAL = "+"
 GOAL = "."
 FLOOR = " "
 
+RLE_FLAG = 1
+
 LCD_WIDTH = 320
 LCD_HEIGHT = 240
 SPRITE_WIDTH = 16
@@ -46,11 +48,10 @@ def rle_encode_level(nums):
         j = i
         while j < len(nums) - 1 and nums[i] == nums[j]:
             j += 1
-        consec_size = j - i - 1
+        consec_size = j - i
         nibbles.append(nums[i])
-        if consec_size >= 3:
-            assert consec_size - 3 <= 15, "overflow"
-            nibbles[-1] |= 1
+        if 0 <= consec_size - 3 <= 15:
+            nibbles[-1] |= RLE_FLAG
             nibbles.append(consec_size - 3)
             i = j
         else:
@@ -133,11 +134,9 @@ for level in levels:
     if level_size > max_level_size:
         max_level_size = level_size
 
-print("Update common.h to make the array's size to be", max_level_size)
-
 file_contents = "#include <stdint.h>\n"
 file_contents += f"uint8_t sokoban_levels[{len(byte_arr)}] = "
-file_contents += "{" + ", ".join(map(str, byte_arr)) + "};\n"
+file_contents += "{" + ", ".join("0x" + hex(n)[2:].rjust(2, "0") for n in byte_arr) + "};\n"
 file_contents += f"uint16_t sokoban_level_table[{len(levels)}] = "
 file_contents += "{" + ", ".join(map(str, cumulative_sizes)) + "};\n"
 
